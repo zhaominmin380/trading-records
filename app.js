@@ -123,7 +123,7 @@ $('#chartPreviews').addEventListener('click',e=>{const button=e.target.closest('
 document.addEventListener('keydown',e=>{const row=e.target.closest('[data-open]');if(row&&e.target===row&&(e.key==='Enter'||e.key===' ')){e.preventDefault();navigate('trade/'+encodeURIComponent(row.dataset.open))}});
 
 
-function accountLabel(a){return (RULE_CATALOG[a.firm]?.name||a.firm)+' '+(RULE_CATALOG[a.firm]?.products[a.product]?.name||a.product)+' '+(a.size/1000)+'K · '+(a.stage==='evaluation'?'考試':a.payoutPolicy==='daily'?'Daily 出金':'Flex 出金')}
+function accountLabel(a){return (RULE_CATALOG[a.firm]?.name||a.firm)+' '+(RULE_CATALOG[a.firm]?.products[a.product]?.name||a.product)+' '+(a.size/1000)+'K · '+(a.stage==='evaluation'?'考試':a.firm==='lucid'?'出金':a.payoutPolicy==='daily'?'Daily 出金':'Flex 出金')}
 function isCustomized(a){if(!a.checkedAt)return true;try{const p=presetRules(a);return [...RULE_NUMBERS,'drawdownMode','lockOnPayout','scaleTiers'].some(k=>a[k]!==p[k])}catch{return true}}
 function renderAccountSelectors(){
 const options=state.accounts.map(a=>'<option value="'+esc(a.id)+'">'+esc(a.name)+'</option>').join('');
@@ -142,16 +142,19 @@ function setRuleFields(account){const f=$('#settingsForm');Object.entries(accoun
 function applyPreset(){const f=$('#settingsForm'),selection=accountSelection(f);setRuleFields(presetRules(selection));f.dataset.checkedAt=RULE_CHECKED;updateRuleForm();}
 function readAccountForm(){const f=$('#settingsForm'),selection=accountSelection(f);const account={id:f.elements.id.value||crypto.randomUUID(),name:f.elements.name.value.trim(),...selection,checkedAt:f.dataset.checkedAt||null};RULE_NUMBERS.forEach(k=>account[k]=f.elements[k].value.trim()===''&&NULLABLE_RULES.includes(k)?null:Number(f.elements[k].value));account.drawdownMode=f.elements.drawdownMode.value;account.lockOnPayout=f.elements.lockOnPayout.checked;account.scaleTiers=f.elements.scaleTiers.value.trim();return account;}
 function updateRuleForm(){
-const f=$('#settingsForm'),selection=accountSelection(f),evaluation=selection.stage==='evaluation';
+const f=$('#settingsForm'),selection=accountSelection(f),evaluation=selection.stage==='evaluation',tradeify=selection.firm==='tradeify';
 $('#accountPayouts').classList.toggle('hidden',evaluation);
-$('#evaluationVersionField').classList.toggle('hidden',!evaluation||selection.size!==50000);$('#consistencyOptionField').classList.toggle('hidden',!evaluation);
-$('#payoutPolicyField').classList.toggle('hidden',evaluation);$('#payoutVersionField').classList.toggle('hidden',evaluation);
+$('#evaluationVersionField').classList.toggle('hidden',!tradeify||!evaluation||selection.size!==50000);$('#consistencyOptionField').classList.toggle('hidden',!evaluation);
+$('#payoutPolicyField').classList.toggle('hidden',!tradeify||evaluation);$('#payoutVersionField').classList.toggle('hidden',!tradeify||evaluation);
 const p=presetRules(selection),keys=[...RULE_NUMBERS,'drawdownMode','lockOnPayout','scaleTiers'];
 const custom=keys.some(k=>{const input=f.elements[k],value=input.type==='checkbox'?input.checked:RULE_NUMBERS.includes(k)?input.value===''&&NULLABLE_RULES.includes(k)?null:Number(input.value):input.value;return value!==p[k]});
 $('#ruleStatus').textContent=custom?'已手動調整':('官方預設 · '+RULE_CHECKED);
-$('#ruleWarning').textContent=evaluation&&selection.size===25000?'25K 考試口數的官方頁面有出入：預設採考試專頁的 10 Micro，請核對平台後調整。':'';
+$('#ruleWarning').textContent=tradeify&&evaluation&&selection.size===25000?'25K 考試口數的官方頁面有出入：預設採考試專頁的 10 Micro，請核對平台後調整。':'';
 $('#ruleWarning').classList.toggle('hidden',!$('#ruleWarning').textContent);
-$('#ruleNotes').textContent=evaluation?'一致性以最高單日淨獲利 ÷ 總淨獲利計算；超過上限需累積更多獲利。50% 方案僅適用已購買加購的帳號。':(selection.payoutPolicy==='flex'?'Flex 按目前餘額減起始資金的總獲利比例提領，不是只算本輪獲利。':'Daily 需保留安全墊，申請額受本輪獲利倍數、上限與最低金額限制。')+' 後續每輪須淨獲利為正，且前次申請已處理完畢。分潤前的申請額與實收金額不同；官方出金方案選定後不可切換。';
+const sources=RULE_CATALOG[selection.firm].products[selection.product].sources||RULE_SOURCES;
+const labels={evaluation:'考試規則',funded:'出金帳號',payout:'出金規則',drawdown:'回撤',scaling:'口數升級'};
+$('#ruleSources').innerHTML='官方資料查核：'+RULE_CHECKED+' · '+Object.entries(sources).map(([key,url])=>'<a href="'+esc(url)+'" target="_blank" rel="noopener">'+labels[key]+'</a>').join(' · ');
+$('#ruleNotes').textContent=!tradeify?(evaluation?'LucidFlex 考試標準一致性 40%，最快三個交易日；已購買 50% 加購方案可選 50%，最快兩日。每日虧損限制預設無；若購買時加選 DLL，請依平台手動填入。':'LucidFlex 每輪須 5 個淨利至少 '+money(p.winningDayProfit)+' 的獲利日，且本輪淨利為正。可申請總獲利的 50%，最低 $500、上限 '+money(p.payoutCap)+'，交易者分潤 90%；無安全墊要求與出金一致性限制。最多 5 次出金後轉 Live。加選 DLL 請手動填入。')+' EOD 回撤鎖在起始資金加 $100；出金時也會鎖定。口數升級依收盤獲利，可隨虧損或出金降級。':evaluation?'一致性以最高單日淨獲利 ÷ 總淨獲利計算；超過上限需累積更多獲利。50% 方案僅適用已購買加購的帳號。':(selection.payoutPolicy==='flex'?'Flex 按目前餘額減起始資金的總獲利比例提領，不是只算本輪獲利。':'Daily 需保留安全墊，申請額受本輪獲利倍數、上限與最低金額限制。')+' 後續每輪須淨獲利為正，且前次申請已處理完畢。分潤前的申請額與實收金額不同；官方出金方案選定後不可切換。';
 }
 function openSettings(newAccount=false){
 const f=$('#settingsForm'),a=newAccount?defaultAccount(''):activeAccount();f.reset();fillCatalog(f,a.firm,a.product,a.size);setRuleFields(a);f.dataset.checkedAt=a.checkedAt||'';$('#accountFormTitle').textContent=newAccount?'新增帳號':'帳號與規則';if(newAccount)f.elements.name.value='';updateRuleForm();$('#settingsDialog').showModal();

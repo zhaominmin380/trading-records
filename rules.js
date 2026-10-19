@@ -18,6 +18,25 @@ const RULE_CATALOG = {
 const RULE_NUMBERS = ['balance','target','daily','days','drawdown','consistencyLimit','startMicro','maxMicro','winningDays','winningDayProfit','buffer','payoutMin','payoutCap','payoutSharePercent','payoutCycleMultiplier','profitSplit','lockOffset'];
 const NULLABLE_RULES = ['target','daily','drawdown','consistencyLimit','payoutMin','payoutCap','payoutSharePercent','payoutCycleMultiplier','profitSplit','lockOffset'];
 RULE_CATALOG.tradeify.products.select.makeRules = tradeifySelectRules;
+RULE_CATALOG.lucid = {name:'Lucid Trading',products:{
+  flex:{name:'LucidFlex',sizes:{50000:{target:3000,drawdown:2000,startMicro:20,maxMicro:40,winningDayProfit:150,payoutCap:2000,scaleTiers:'1000:30,2000:40'},150000:{target:9000,drawdown:4500,startMicro:40,maxMicro:100,winningDayProfit:250,payoutCap:3000,scaleTiers:'1000:50,2000:60,3000:80,4500:100'}},makeRules:lucidFlexRules,sources:{
+    evaluation:'https://support.lucidtrading.com/en/articles/12945790-lucidflex-evaluation-account',
+    funded:'https://support.lucidtrading.com/en/articles/12945795-lucidflex-funded-account',
+    payout:'https://support.lucidtrading.com/en/articles/12945796-lucidflex-payouts',
+    drawdown:'https://support.lucidtrading.com/en/articles/12945815-lucidflex-drawdown',
+    scaling:'https://support.lucidtrading.com/en/articles/12945808-lucidflex-scaling-plan'
+  }}
+}};
+function lucidFlexRules(selection,row) {
+  const evaluation=selection.stage==='evaluation';
+  return {balance:Number(selection.size),target:evaluation?row.target:null,daily:null,days:evaluation?(selection.consistencyOption==='addon'?2:3):0,
+    drawdown:row.drawdown,drawdownMode:'eod',consistencyLimit:evaluation?(selection.consistencyOption==='addon'?50:40):null,
+    startMicro:evaluation?row.maxMicro:row.startMicro,maxMicro:row.maxMicro,winningDays:evaluation?0:5,
+    winningDayProfit:evaluation?0:row.winningDayProfit,buffer:0,payoutMin:evaluation?null:500,
+    payoutCap:evaluation?null:row.payoutCap,payoutSharePercent:evaluation?null:50,
+    payoutCycleMultiplier:null,profitSplit:evaluation?null:90,lockOffset:100,
+    lockOnPayout:!evaluation,scaleTiers:evaluation?'':row.scaleTiers,checkedAt:RULE_CHECKED};
+}
 function presetRules(selection) {
   const product=RULE_CATALOG[selection.firm]?.products[selection.product];
   const row=product?.sizes[selection.size];

@@ -3,7 +3,7 @@
 粉白色繁體中文交易日誌，靜態網站，無須安裝依賴。
 
 ```sh
-cd dist
+cd mnq-journal
 python3 -m http.server 8080
 ```
 
@@ -11,11 +11,11 @@ python3 -m http.server 8080
 
 ## 帳號與規則
 
-首頁帳號選單右側可新增帳號，選單下方顯示帳號資訊，再往下顯示期間統計、月曆與交易紀錄；不顯示累積淨損益圖表。「帳號與規則」以寬版視窗呈現帳號資料、資金與風控、持倉限制及出金規則分區，標題與儲存按鈕固定，內容獨立捲動；手機使用單欄，考試帳號隱藏出金規則區。依序選擇公司、類型、金額、考試／出金階段。目前提供 Tradeify Select 25K、50K、150K，含 Flex／Daily 出金方案。
+首頁帳號選單右側可新增帳號，選單下方顯示帳號資訊，再往下顯示期間統計、月曆與交易紀錄；不顯示累積淨損益圖表。「帳號與規則」以寬版視窗呈現帳號資料、資金與風控、持倉限制及出金規則分區，標題與儲存按鈕固定，內容獨立捲動；手機使用單欄，考試帳號隱藏出金規則區。依序選擇公司、類型、金額、考試／出金階段。目前提供 Tradeify Select 25K、50K、150K（Flex／Daily），以及 Lucid Trading → LucidFlex 50K／150K（考試／Sim Funded）。
 
 選單切換會自動填入規則。數值均可手動修改，空白代表無／不適用；保存後屬於該帳號的獨立快照，不會因新增其他帳號或更新預設而被覆蓋。「重新套用官方預設」才會重設。考試支援標準 40%／已購買 50% 加購；50K 支援現行 $3,000 與舊儀表板前購買 $2,500 目標。出金上限可選 2026/09/01（含）後與之前的版本。
 
-查核日期與官方來源放在帳號表單；數值與差異見 [Tradeify 規則查核](TRADEIFY-RULES.md)。規則目錄位於 `dist/rules.js`：`RULE_CATALOG` 可新增公司／產品，產品提供 `sizes` 和 `makeRules`，不需修改交易紀錄結構。
+查核日期與官方來源放在帳號表單；數值與差異見 [Tradeify 規則查核](TRADEIFY-RULES.md)。規則目錄位於 `rules.js`：`RULE_CATALOG` 可新增公司／產品，產品提供 `sizes` 和 `makeRules`，不需修改交易紀錄結構。
 
 ## 交易紀錄
 
@@ -34,8 +34,8 @@ v2 備份儲存 accounts、activeAccountId 和每筆交易的 accountId，settin
 ## 驗證
 
 ```sh
-node --check dist/rules.js
-node --check dist/app.js
+node --check rules.js
+node --check app.js
 node tests/accounts.cjs
 ```
 
@@ -60,3 +60,11 @@ Sites 已保留原 project_id；原始碼服務 `git.chatgpt-team.site` 目前 D
 淨損益＝（出場－進場）× 方向 × 口數 × 每點價值－總手續費。價格使用最小跳動驗證，計算時處理小數精度，最終結果四捨五入至美分；每筆紀錄會保存 symbol。考核帳號持倉限制仍以 Micro 等值記錄，不是各標的實際口數上限，網站不自動判定持倉合規。
 
 官方來源：[NQ](https://www.cmegroup.com/markets/equities/nasdaq/e-mini-nasdaq-100.contractSpecs.html)、[MNQ](https://www.cmegroup.com/markets/equities/nasdaq/micro-e-mini-nasdaq-100.contractSpecs.html)、[ES](https://www.cmegroup.com/markets/equities/sp/e-mini-sandp500.contractSpecs.html)、[MES](https://www.cmegroup.com/markets/equities/sp/micro-e-mini-sandp-500.contractSpecs.html)、[GC](https://www.cmegroup.com/education/articles-and-reports/trading-comex-gold-and-silver)。查核日期：2026-10-19。
+
+## LucidFlex 50K
+
+考試預設：目標 $3,000、EOD 回撤 $2,000、標準 40% 一致性最快 3 日（已購買 50% 加購可選最快 2 日）、40 Micro。出金帳號：起始 20 Micro，收盤獲利 $1,000／$2,000 升至 30／40 Micro；每輪需 5 個淨利至少 $150 的獲利日及本輪正淨利，最低申請 $500、總獲利 50% 且上限 $2,000、90% 分潤，無安全墊及一致性限制。EOD 回撤鎖在起始資金加 $100，出金時亦鎖定。DLL 預設無，購買時加選者請依平台手動填入。最多 5 次出金後轉 Live。網站不追蹤出金週期、次數或自動判定出金資格。
+
+查核日期：2026-10-19。官方來源：[考試](https://support.lucidtrading.com/en/articles/12945790-lucidflex-evaluation-account)、[出金帳號](https://support.lucidtrading.com/en/articles/12945795-lucidflex-funded-account)、[出金規則](https://support.lucidtrading.com/en/articles/12945796-lucidflex-payouts)、[回撤](https://support.lucidtrading.com/en/articles/12945815-lucidflex-drawdown)、[口數升級](https://support.lucidtrading.com/en/articles/12945808-lucidflex-scaling-plan)。
+
+LucidFlex 150K 同樣支援考試／Sim Funded。考試目標 $9,000、EOD 回撤 $4,500、最高 100 Micro，標準 40% 一致性／最快 3 日，加購 50%／最快 2 日。出金帳號起始 40 Micro，收盤獲利達 $1,000／$2,000／$3,000／$4,500 升至 50／60／80／100 Micro；每輪 5 個淨利至少 $250 的獲利日，單次上限 $3,000，其餘出金規則與 50K 相同。已儲存帳號仍保留原始規則快照；重新套用預設才會更新。

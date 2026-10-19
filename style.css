@@ -1220,6 +1220,7 @@ tr[data-open]:focus-visible {
   min-width:0
 }
 #settingsForm input:not([type=checkbox]),#settingsForm select {
+  height:45px;
   min-height:45px;
   border-color:#eddee7;
   background:#fffdfE;

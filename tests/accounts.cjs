@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const dist=path.join(__dirname,'../dist'),html=fs.readFileSync(path.join(dist,'index.html'),'utf8');
+const dist=path.join(__dirname,'..'),html=fs.readFileSync(path.join(dist,'index.html'),'utf8');
 function app(saved){
  const nodes={},events={},nav=[];
  function node(attrs={}){const handlers={},classes=new Set();let content='',value=attrs.value||'';return {type:attrs.type||'',name:attrs.name||'',dataset:{},checked:false,elements:{},style:{},firstChild:{textContent:''},classList:{add:c=>classes.add(c),toggle(c,force){if(force===undefined)force=!classes.has(c);force?classes.add(c):classes.delete(c)},contains:c=>classes.has(c)},get innerHTML(){return content},set innerHTML(text){content=text;if(attrs.tag==='select'){const options=[...text.matchAll(/<option value="([^"]*)"/g)].map(m=>m[1]);this.options=options;if(!options.includes(value))value=options[0]||''}},get value(){return value},set value(v){v=String(v);value=attrs.tag==='select'&&this.options&&!this.options.includes(v)?'':v},setAttribute(k,v){this[k]=v},addEventListener(k,fn){(handlers[k]??=[]).push(fn)},dispatch(k){for(const fn of handlers[k]||[])fn({target:this})},showModal(){this.open=true},close(){this.open=false},reset(){},focus(){}}}
@@ -72,3 +72,39 @@ $('#symbolFilter').value='all';render();assert.ok($('#rows').innerHTML.includes(
 assert.equal(c.run('state.trades[0].symbol'),'MNQ');
 console.log('PASS: all instrument multipliers, long/short P&L, GC decimals, tick validation, selection/edit persistence, list filter, legacy MNQ migration');
 const symbolsReload=app(JSON.parse(a.storage['edgebook-v1']));assert.equal(symbolsReload.run('state.trades.find(t=>t.symbol==="GC").entry'),2650.1);
+
+const lucid=app();lucid.context.assert=assert;
+lucid.run(`
+openSettings(true);const f=$('#settingsForm');f.elements.firm.value='lucid';f.elements.firm.dispatch('change');
+assert.equal(f.elements.product.value,'flex');assert.equal(f.elements.size.value,'50000');
+assert.equal(f.elements.target.value,'3000');assert.equal(f.elements.consistencyLimit.value,'40');assert.equal(f.elements.days.value,'3');
+assert.equal(f.elements.daily.value,'');assert.equal(f.elements.startMicro.value,'40');
+assert.equal($('#consistencyOptionField').classList.contains('hidden'),false);assert.equal($('#evaluationVersionField').classList.contains('hidden'),true);
+assert.ok($('#ruleSources').innerHTML.includes('support.lucidtrading.com'));assert.ok(!$('#ruleSources').innerHTML.includes('tradeify.co'));
+f.elements.stage.value='funded';f.elements.stage.dispatch('change');
+assert.equal(f.elements.target.value,'');assert.equal(f.elements.winningDays.value,'5');assert.equal(f.elements.winningDayProfit.value,'150');
+assert.equal(f.elements.payoutCap.value,'2000');assert.equal(f.elements.startMicro.value,'20');assert.equal(f.elements.scaleTiers.value,'1000:30,2000:40');
+assert.equal($('#payoutPolicyField').classList.contains('hidden'),true);assert.equal($('#payoutVersionField').classList.contains('hidden'),true);
+f.elements.name.value='Lucid 50K';f.onsubmit({preventDefault(){}});assert.equal(state.accounts.length,2);assert.equal(validAccount(activeAccount()),true);assert.equal(accountLabel(activeAccount()),'Lucid Trading LucidFlex 50K · 出金');
+openSettings();assert.equal(f.elements.firm.value,'lucid');assert.equal(f.elements.payoutMin.value,'500');
+f.elements.firm.value='tradeify';f.elements.firm.dispatch('change');assert.equal(f.elements.product.value,'select');assert.equal($('#payoutPolicyField').classList.contains('hidden'),false);assert.ok($('#ruleSources').innerHTML.includes('help.tradeify.co'));
+`);
+const lucidReload=app(JSON.parse(lucid.storage['edgebook-v1']));assert.equal(lucidReload.run('activeAccount().firm'),'lucid');assert.equal(lucidReload.run('validState(state)'),true);
+console.log('PASS: LucidFlex 50K selection, evaluation/funded presets, company-specific controls/sources, save/reload and switching back to Tradeify');
+
+const lucid150=app();lucid150.context.assert=assert;
+lucid150.run(`
+openSettings(true);const f=$('#settingsForm');f.elements.firm.value='lucid';f.elements.firm.dispatch('change');
+f.elements.size.value='150000';f.elements.size.dispatch('change');
+assert.equal(f.elements.balance.value,'150000');assert.equal(f.elements.target.value,'9000');assert.equal(f.elements.drawdown.value,'4500');assert.equal(f.elements.startMicro.value,'100');assert.equal(f.elements.maxMicro.value,'100');
+assert.equal(f.elements.consistencyLimit.value,'40');assert.equal(f.elements.days.value,'3');
+f.elements.consistencyOption.value='addon';f.elements.consistencyOption.dispatch('change');assert.equal(f.elements.consistencyLimit.value,'50');assert.equal(f.elements.days.value,'2');
+f.elements.stage.value='funded';f.elements.stage.dispatch('change');
+assert.equal(f.elements.startMicro.value,'40');assert.equal(f.elements.maxMicro.value,'100');assert.equal(f.elements.scaleTiers.value,'1000:50,2000:60,3000:80,4500:100');
+assert.equal(f.elements.winningDayProfit.value,'250');assert.equal(f.elements.winningDays.value,'5');assert.equal(f.elements.payoutCap.value,'3000');assert.ok($('#ruleNotes').textContent.includes('$250.00'));assert.ok($('#ruleNotes').textContent.includes('$3,000.00'));
+f.elements.name.value='Lucid 150K';f.onsubmit({preventDefault(){}});assert.equal(validAccount(activeAccount()),true);assert.equal(activeAccount().size,150000);
+openSettings();assert.equal(f.elements.size.value,'150000');
+f.elements.size.value='50000';f.elements.size.dispatch('change');assert.equal(f.elements.drawdown.value,'2000');assert.equal(f.elements.payoutCap.value,'2000');
+`);
+const reload150=app(JSON.parse(lucid150.storage['edgebook-v1']));assert.equal(reload150.run('activeAccount().size'),150000);assert.equal(reload150.run('activeAccount().drawdown'),4500);assert.equal(reload150.run('validState(state)'),true);
+console.log('PASS: LucidFlex 150K evaluation/add-on/funded, size-specific notes, switching sizes and save/reload');
